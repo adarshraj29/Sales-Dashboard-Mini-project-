@@ -1,0 +1,129 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sales Analysis Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#eef2f9;--card:#ffffffcc;--tx:#1b2a49;--mut:#6b7a99;--acc:#6c5ce7;--grid:#0001}
+[data-theme=dark]{--bg:#0e1424;--card:#1a2340cc;--tx:#e8edff;--mut:#9aa8cc;--grid:#fff2}
+*{box-sizing:border-box}body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--tx);transition:.3s}
+header{background:linear-gradient(120deg,#6c5ce7,#00b4d8,#f72585);background-size:200% 200%;animation:bg 12s ease infinite;
+ color:#fff;padding:22px 28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+@keyframes bg{50%{background-position:100% 50%}}
+header h1{margin:0;font-size:26px}header small{opacity:.9}
+.wrap{padding:18px 22px;max-width:1500px;margin:auto}
+.bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;background:var(--card);padding:14px;border-radius:14px;
+ backdrop-filter:blur(8px);box-shadow:0 4px 18px #0002;margin-bottom:18px}
+.bar label{font-size:12px;color:var(--mut);display:block;margin-bottom:3px}
+select,button{font:inherit;padding:7px 11px;border-radius:9px;border:1px solid #8884;background:var(--card);color:var(--tx);cursor:pointer}
+button:hover{border-color:var(--acc)}.on{background:var(--acc)!important;color:#fff!important;border-color:var(--acc)}
+.chip{border-radius:20px;padding:5px 13px;margin:0 3px 3px 0;font-size:13px}
+.grp{display:flex;gap:4px;flex-wrap:wrap}.sp{flex:1}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:18px}
+.kpi{border-radius:16px;padding:16px 18px;color:#fff;box-shadow:0 6px 18px #0003;transition:.25s;animation:up .6s both}
+.kpi:hover{transform:translateY(-5px) scale(1.02)}.kpi b{display:block;font-size:25px;margin-top:4px}.kpi span{font-size:12px;opacity:.9}
+@keyframes up{from{opacity:0;transform:translateY(20px)}}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
+.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 4px 18px #0002;backdrop-filter:blur(8px);animation:up .7s both;transition:.25s}
+.card:hover{box-shadow:0 8px 26px #0004}.card h3{margin:0 0 10px;font-size:15px}.wide{grid-column:1/-1}
+.ch{position:relative;height:290px}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:8px;text-align:right;border-bottom:1px solid var(--grid)}
+th:first-child,td:first-child{text-align:left}th{color:var(--mut);font-weight:600}
+.ins{line-height:1.8;font-size:14px}.ins i{font-style:normal;color:var(--acc);font-weight:700}
+footer{text-align:center;color:var(--mut);padding:18px;font-size:13px}
+@media(max-width:520px){.grid{grid-template-columns:1fr}.ch{height:250px}header h1{font-size:20px}}
+</style></head><body>
+<header><div><h1>&#128200; Sales Analysis Dashboard</h1><small>Python &bull; NumPy &bull; Matplotlib &mdash; Adarsh Raj (26MCA20214)</small></div>
+<button id="theme">&#127769; Dark mode</button></header>
+<div class="wrap">
+<div class="bar">
+ <div><label>Region</label><select id="reg"></select></div>
+ <div><label>From</label><select id="from"></select></div>
+ <div><label>To</label><select id="to"></select></div>
+ <div><label>Show</label><div class="grp"><button id="m_rev" class="on">Revenue</button><button id="m_qty">Units</button></div></div>
+ <div><label>Trend style</label><div class="grp"><button id="t_line" class="on">Line + forecast</button><button id="t_area">Stacked area</button></div></div>
+ <div class="sp"><label>Categories (click to toggle)</label><div id="chips"></div></div>
+ <button id="reset">&#8635; Reset</button><button id="csv">&#11015; Export CSV</button>
+</div>
+<div class="kpis" id="kpis"></div>
+<div class="grid">
+ <div class="card wide"><h3 id="t1">Sales trend</h3><div class="ch"><canvas id="c1"></canvas></div></div>
+ <div class="card"><h3>Performance by category</h3><div class="ch"><canvas id="c2"></canvas></div></div>
+ <div class="card"><h3>Performance by region</h3><div class="ch"><canvas id="c3"></canvas></div></div>
+ <div class="card"><h3>Share by product type</h3><div class="ch"><canvas id="c4"></canvas></div></div>
+ <div class="card"><h3>Share by customer segment</h3><div class="ch"><canvas id="c5"></canvas></div></div>
+ <div class="card"><h3>&#127942; Top 5 category-region combinations</h3><table id="tbl"></table></div>
+ <div class="card"><h3>&#128161; Auto insights</h3><div class="ins" id="ins"></div></div>
+</div></div>
+<footer>Data generated with NumPy &bull; Charts drawn with Matplotlib (PNG gallery) &amp; Chart.js (interactive)</footer>
+<script>
+const D={"months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], "cats": ["Electronics", "Clothing", "Groceries", "Furniture", "Sports"], "regs": ["North", "South", "East", "West"], "segs": ["Students", "Young Professionals", "Families", "Seniors"], "price": [18000, 1500, 400, 9000, 2500], "units": [[[30, 20, 20, 28], [61, 48, 48, 64], [156, 109, 111, 152], [19, 16, 13, 16], [37, 25, 26, 33]], [[28, 20, 21, 26], [70, 52, 50, 68], [161, 121, 122, 138], [18, 13, 13, 19], [36, 25, 22, 35]], [[34, 25, 20, 30], [82, 62, 58, 76], [185, 132, 120, 169], [19, 16, 14, 19], [40, 34, 25, 40]], [[30, 25, 23, 33], [90, 68, 55, 75], [198, 137, 111, 154], [21, 18, 15, 22], [41, 32, 30, 38]], [[37, 26, 23, 32], [81, 70, 58, 83], [202, 151, 137, 177], [23, 18, 14, 19], [40, 31, 31, 38]], [[33, 28, 22, 33], [79, 63, 53, 76], [198, 120, 128, 173], [22, 15, 15, 20], [44, 32, 32, 38]], [[30, 25, 22, 33], [86, 62, 60, 67], [167, 122, 113, 143], [23, 16, 13, 18], [42, 32, 31, 46]], [[37, 25, 20, 34], [84, 65, 57, 82], [212, 148, 128, 164], [21, 17, 16, 25], [45, 36, 29, 37]], [[35, 27, 29, 32], [101, 66, 68, 89], [202, 153, 129, 194], [24, 17, 15, 23], [53, 36, 31, 44]], [[52, 36, 30, 47], [121, 99, 79, 97], [226, 215, 192, 229], [30, 26, 19, 27], [62, 42, 39, 53]], [[52, 42, 34, 49], [105, 94, 78, 104], [254, 199, 195, 224], [34, 24, 22, 33], [66, 52, 41, 55]], [[53, 41, 37, 45], [136, 103, 108, 142], [273, 214, 172, 255], [37, 30, 23, 31], [56, 50, 41, 59]]], "segRev": [[661304.0, 732081.0, 844633.0, 835531.0, 876256.0, 866540.0, 803661.0, 850826.0, 931084.0, 1217546.0, 1263965.0, 1316967.0], [1140163.0, 1115047.0, 1306857.0, 1300687.0, 1330554.0, 1283192.0, 1302858.0, 1373338.0, 1484568.0, 1804325.0, 1980594.0, 2071940.0], [1009344.0, 958175.0, 1018112.0, 1143035.0, 1202468.0, 1154044.0, 1083671.0, 1186649.0, 1180774.0, 1673619.0, 1730320.0, 1774783.0], [374389.0, 343497.0, 411298.0, 427247.0, 435521.0, 451324.0, 427810.0, 448488.0, 495774.0, 621310.0, 683421.0, 707411.0]], "colors": ["#4C78A8", "#F58518", "#54A24B", "#E45756", "#B279A2"]};const $=i=>document.getElementById(i);
+const GR=['#6c5ce7,#a29bfe','#00b4d8,#48cae4','#f72585,#ff6b9d','#fb8500,#ffb703','#2a9d8f,#52b788'];
+const def={reg:'all',cats:[0,1,2,3,4],from:0,to:11,metric:'rev',mode:'line'};let st=JSON.parse(JSON.stringify(def));
+const fm=(v,m)=>m==='rev'?(v>=1e7?'\u20b9'+(v/1e7).toFixed(2)+' Cr':'\u20b9'+(v/1e5).toFixed(1)+' L'):Math.round(v).toLocaleString('en-IN');
+const val=(m,c,r,k)=>D.units[m][c][r]*(k==='rev'?D.price[c]:1);
+$('reg').innerHTML='<option value="all">All regions</option>'+D.regs.map((r,i)=>`<option value="${i}">${r}</option>`).join('');
+['from','to'].forEach(id=>$(id).innerHTML=D.months.map((m,i)=>`<option value="${i}">${m}</option>`).join(''));
+$('to').value=11;
+$('chips').innerHTML=D.cats.map((c,i)=>`<button class="chip on" data-i="${i}" style="border-color:${D.colors[i]}">${c}</button>`).join('');
+Chart.defaults.font.family='Segoe UI,Arial';Chart.defaults.maintainAspectRatio=false;
+const mk=(id,type,opt={})=>new Chart($(id),{type,data:{labels:[],datasets:[]},options:Object.assign({animation:{duration:700}},opt)});
+const sc={scales:{y:{beginAtZero:true,grid:{color:'#8883'}},x:{grid:{display:false}}}};
+const c1=mk('c1','line',sc),c2=mk('c2','bar',{...sc,plugins:{legend:{display:false}}}),c3=mk('c3','bar',sc),
+ c4=mk('c4','doughnut',{cutout:'55%'}),c5=mk('c5','pie');
+function count(el,to,k){const f=+el.dataset.v||0;el.dataset.v=to;const t0=performance.now();
+ (function s(t){const p=Math.min(1,(t-t0)/600);el.textContent=fm(f+(to-f)*p,k);if(p<1)requestAnimationFrame(s)})(t0)}
+function update(){
+ const R=st.reg==='all'?[0,1,2,3]:[+st.reg],C=st.cats,k=st.metric,ms=[];
+ for(let m=st.from;m<=st.to;m++)ms.push(m);
+ const S=(M,CC,RR,kk)=>{let t=0;M.forEach(m=>CC.forEach(c=>RR.forEach(r=>t+=val(m,c,r,kk))));return t};
+ const monthly=ms.map(m=>S([m],C,R,k)),totR=S(ms,C,R,'rev'),totU=S(ms,C,R,'qty');
+ const catT=D.cats.map((_,c)=>C.includes(c)?S(ms,[c],R,k):0),regT=D.regs.map((_,r)=>S(ms,C,[r],k));
+ const bi=monthly.indexOf(Math.max(...monthly)),g=monthly.length>1&&monthly[0]?(monthly.at(-1)-monthly[0])/monthly[0]*100:0;
+ const tc=catT.indexOf(Math.max(...catT));
+ const K=[['Total revenue',totR,'rev'],['Units sold',totU,'qty'],['Avg / month',totR/(ms.length||1),'rev'],
+  ['Best month',D.months[ms[bi]]||'-'],['Growth first\u2192last',g.toFixed(1)+'%'],['Top category',C.length?D.cats[tc]:'-']];
+ if(!$('kpis').children.length)$('kpis').innerHTML=K.map((x,i)=>`<div class="kpi" style="background:linear-gradient(135deg,${GR[i%5].split(',').join(',')});animation-delay:${i*80}ms"><span>${x[0]}</span><b></b></div>`).join('');
+ K.forEach((x,i)=>{const b=$('kpis').children[i].querySelector('b');x[2]?count(b,x[1],x[2]):b.textContent=x[1]});
+ // trend (line + linear-regression forecast  OR  stacked area)
+ let labels=ms.map(m=>D.months[m]),ds;
+ if(st.mode==='line'){const n=monthly.length,xs=[...Array(n).keys()],mx=(n-1)/2,my=monthly.reduce((a,b)=>a+b,0)/(n||1);
+  const sl=n>1?xs.reduce((a,x,i)=>a+(x-mx)*(monthly[i]-my),0)/xs.reduce((a,x)=>a+(x-mx)**2,0):0;
+  const fc=[1,2,3].map(j=>Math.max(0,my+sl*(n-1+j-mx)));
+  labels=labels.concat(['Next+1','Next+2','Next+3']);
+  ds=[{label:'Sales',data:monthly,borderColor:'#6c5ce7',backgroundColor:'#6c5ce733',fill:false,tension:.35,borderWidth:3,pointRadius:4},
+   {label:'Forecast (linear trend)',data:Array(Math.max(n-1,0)).fill(null).concat([monthly.at(-1)],fc),borderColor:'#f72585',borderDash:[6,5],tension:.35,pointRadius:4}];
+  $('t1').textContent='Sales trend with 3-month forecast (NumPy-style linear regression)'}
+ else{ds=C.map(c=>({label:D.cats[c],data:ms.map(m=>S([m],[c],R,k)),backgroundColor:D.colors[c]+'cc',borderColor:D.colors[c],fill:true,tension:.35,pointRadius:0}));
+  $('t1').textContent='Category contribution over time (stacked area)'}
+ c1.data={labels,datasets:ds};c1.options.scales.y.stacked=c1.options.scales.x.stacked=st.mode==='area';c1.update();
+ const idx=D.cats.map((_,i)=>i).filter(i=>C.includes(i));
+ c2.data={labels:idx.map(i=>D.cats[i]),datasets:[{data:idx.map(i=>catT[i]),backgroundColor:idx.map(i=>D.colors[i]),borderRadius:8}]};c2.update();
+ c3.data={labels:D.regs,datasets:C.map(c=>({label:D.cats[c],backgroundColor:D.colors[c],borderRadius:5,data:D.regs.map((_,r)=>S(ms,[c],[r],k))}))};c3.update();
+ c4.data={labels:idx.map(i=>D.cats[i]),datasets:[{data:idx.map(i=>catT[i]),backgroundColor:idx.map(i=>D.colors[i]),borderWidth:2}]};c4.update();
+ const sg=D.segs.map((_,s)=>ms.reduce((a,m)=>a+D.segRev[s][m],0));
+ c5.data={labels:D.segs,datasets:[{data:sg,backgroundColor:['#00b4d8','#ffb703','#f72585','#6c5ce7'],borderWidth:2}]};c5.update();
+ // top-5 table
+ const rows=[];C.forEach(c=>R.forEach(r=>rows.push([D.cats[c]+' \u2014 '+D.regs[r],S(ms,[c],[r],'qty'),S(ms,[c],[r],'rev')])));
+ rows.sort((a,b)=>b[2]-a[2]);
+ $('tbl').innerHTML='<tr><th>Category \u2014 Region</th><th>Units</th><th>Revenue</th><th>Share</th></tr>'+
+  rows.slice(0,5).map(r=>`<tr><td>${r[0]}</td><td>${r[1].toLocaleString('en-IN')}</td><td>${fm(r[2],'rev')}</td><td>${(r[2]/(totR||1)*100).toFixed(1)}%</td></tr>`).join('');
+ const br=regT.indexOf(Math.max(...regT));
+ $('ins').innerHTML=C.length&&ms.length?`&#9679; Peak month is <i>${D.months[ms[bi]]}</i> with <i>${fm(monthly[bi],k)}</i>.<br>&#9679; <i>${D.cats[tc]}</i> leads with <i>${(catT[tc]/(catT.reduce((a,b)=>a+b,0)||1)*100).toFixed(1)}%</i> of the selection.<br>&#9679; Strongest region: <i>${D.regs[br]}</i>.<br>&#9679; Sales moved <i>${g>=0?'up':'down'} ${Math.abs(g).toFixed(1)}%</i> from ${D.months[ms[0]]} to ${D.months[ms.at(-1)]}.`:'Select at least one category.';
+ window._csv=[['Month','Value']].concat(ms.map((m,i)=>[D.months[m],Math.round(monthly[i])]));
+}
+const bind=(id,f)=>$(id).onclick=()=>{f();update()};
+$('reg').onchange=e=>{st.reg=e.target.value;update()};
+$('from').onchange=e=>{st.from=+e.target.value;if(st.from>st.to){st.to=st.from;$('to').value=st.to}update()};
+$('to').onchange=e=>{st.to=+e.target.value;if(st.to<st.from){st.from=st.to;$('from').value=st.from}update()};
+document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;b.classList.toggle('on');
+ st.cats=st.cats.includes(i)?st.cats.filter(x=>x!==i):st.cats.concat(i).sort();update()});
+const tg=(a,b,key,va,vb)=>{bind(a,()=>{st[key]=va;$(a).classList.add('on');$(b).classList.remove('on')});bind(b,()=>{st[key]=vb;$(b).classList.add('on');$(a).classList.remove('on')})};
+tg('m_rev','m_qty','metric','rev','qty');tg('t_line','t_area','mode','line','area');
+$('reset').onclick=()=>{st=JSON.parse(JSON.stringify(def));$('reg').value='all';$('from').value=0;$('to').value=11;
+ document.querySelectorAll('.chip').forEach(b=>b.classList.add('on'));
+ ['m_rev','t_line'].forEach(i=>$(i).classList.add('on'));['m_qty','t_area'].forEach(i=>$(i).classList.remove('on'));update()};
+$('csv').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([window._csv.join('\n').replace(/,/g,',')],{type:'text/csv'}));a.download='sales_selection.csv';a.click()};
+$('theme').onclick=()=>{const d=document.documentElement.dataset.theme==='dark';document.documentElement.dataset.theme=d?'':'dark';
+ $('theme').innerHTML=d?'&#127769; Dark mode':'&#9728; Light mode';Chart.defaults.color=d?'#1b2a49':'#e8edff';[c1,c2,c3,c4,c5].forEach(c=>c.update())};
+Chart.defaults.color='#1b2a49';update();
+</script></body></html>
